@@ -5,3 +5,7 @@ The file names are arranged in the order PDBid_OCCLUDED/OPEN/CLOSED/_IonicStreng
 For example file 6cw7_OCC_0.75M_EQ.CRD file corresponds to a simulation of DHFR structure 6cw7.pdb which is in OCCLUDED M20loop having a CaCl2 solution ionic strengh of 0.75M.  _EQ stands for equilibrated configuration (.RST stands for CHARMM restart file)
 Files ending with .inp extension are CHARMM input files.  The files have form PDBid_OCC/OPN/CLO_Ionic Strengh_dynP.inp
 File dhfr.seq is the residue sequence file
+A fortran program for computing distance dependent electrostatic around the nose of M20 loop (see paper) is included with extension .f
+dcd_loop.inp is the data file for this program
+trajectory coorinate file is stored in file 'out_file' as inpput file (in uncompressed form)
+Please contact Dr. C. S. Babu for any questions  (email:  satheesanbabu@gmail.com)
