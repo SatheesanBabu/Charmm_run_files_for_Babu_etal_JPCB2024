@@ -1,0 +1,6 @@
+1,3000,81393,0           | nstart,numframe,natomt,nfix
+93.00000                | side length of the cubic box
+'6cw7_image.CRD'            | crd file
+'loop_AP.dat'
+'tip3p.psf'              | crd file
+1,0.10 
