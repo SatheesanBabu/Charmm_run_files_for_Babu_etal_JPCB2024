@@ -1,0 +1,248 @@
+* Mar/10/2011
+*
+
+
+!=======================================================================================
+! File Definitions
+!---------------------------------------------------------------------------------------
+Set read_psf                  = "tip3p.psf"
+Set read_seq                  = "dhfr.seq"
+
+Set read_crd                  = "3ql3_CLO_0.3M_EQ.CRD"
+
+Set restart                   = "3ql3_CLO_0.3M_EQ.RST"
+
+Set output                    = "3ql3_16"
+
+Set steps                     = 3000000
+
+Set CubeSize                  = 93.000
+Set CubeAngle                 = 90.0
+Set CutOff_Crystal            = 20.0
+
+!=======================================================================================
+! BOMB BOMB
+bomb -5
+!=======================================================================================
+! Topology file
+! -------------
+OPEN READ FORMatted UNIT 11 NAME  top_all36_prot.rtf
+READ RTF CARD UNIT 11
+CLOSe UNIT 11
+
+!
+! Parameter file
+! --------------
+OPEN READ FORMatted UNIT 12 NAME  par_all36_prot.prm
+READ PARAmeter CARD UNIT 12
+CLOSe UNIT 12
+
+
+!----------------------------------------------------------------------------
+! Read in the Coord and the sequence /or PSF files /or generate PSF
+!----------------------------------------------------------------------------
+!open read form unit 13 name @{read_psf}
+!read psf card unit 13
+!close unit 13
+
+! read sequence card for thio
+
+OPEN UNIT 1 NAME @{read_seq} READ FORM
+READ SEQUENCE CARD UNIT 1
+GENERATE DHFR CTER NTER SETUP
+CLOSE UNIT 1
+
+READ SEQUENCE TIP3 26060 
+GENERATE SOLV NOANGLE NODIHEDRAL SETUP
+READ SEQUENCE CAL 49 
+GENERATE CAL NOANGLE NODIHEDRAL SETUP
+READ SEQUENCE CLA 90 
+GENERATE CLA NOANGLE NODIHEDRAL SETUP
+READ SEQUENCE DUM 2 
+GENERATE DUM NOANGLE NODIHEDRAL SETUP
+
+open read card unit 14 name @{read_crd}
+read coord card unit 14
+close unit 14
+!-------------------------------------------------------------------------------------------------
+!  Now remove waters overlapping with the solute 
+!-------------------------------------------------------------------------------------------------
+
+HBUILD
+
+!DELETE ATOM SELE .BYRES. ((  SEGID SOLV .AND. TYPE OH2  ) -
+! .AND. ((.NOT. SEGID SOLV .AND.  .NOT. HYDROGEN ) -
+!  .AROUND. 2.75 )) END
+
+open write form unit 13 name @{read_psf}
+write psf card unit 13
+close unit 13
+!open write form unit 13 name @{output}.CRD
+!write coord card unit 13
+!close unit 13
+!stop
+!------------------------------------------------------------------------------------------------
+! Define selections
+!-----------------------------------------------------------------------------------------------
+define solu sele segid dhfr end
+define soli sele all .and. .not. solu end
+
+DEFINE BAKB SELE (type ha .or. type hn .or. TYPE N .OR. TYPE CA .OR. TYPE C .OR. TYPE O) END
+DEFINE SDCH SELE (TYPE CB* .OR. TYPE CG* .OR. TYPE CD* .OR. TYPE NE* -
+             .OR. TYPE CZ* .OR. TYPE NH* .OR. TYPE OD* .OR. TYPE ND* -
+             .OR. TYPE SG .OR. TYPE OE* .OR. TYPE CE* .OR. TYPE NZ* -
+             .OR. TYPE SD .OR. TYPE OG* .OR. TYPE CH* .OR. TYPE OH -
+             .OR. TYPE OT*) END
+!-------------------------------------------------------------------------------------------------
+!  Now define Crystal for a Cubic box and "Image Centering", Mainly are from Nam's:
+!-------------------------------------------------------------------------------------------------
+Crystal Define Cubic @{CubeSize} @{CubeSize} @{CubeSize} @{CubeAngle} @{CubeAngle} @{CubeAngle}
+Crystal Build  CutOff @{CutOff_Crystal} nOperations 0
+
+image byseg xcen 0.0 ycen 0.0 zcen 0.0 select solu end
+image byres xcen 0.0 ycen 0.0 zcen 0.0 select soli end
+
+
+!----------------------------------------
+! Generation of Non-bonded Interactions:
+!----------------------------------------
+UPDAte   Electro Group Switch CDielectric Epsilon 1.0 -
+         Ewald PMEwald Kappa 0.34 Spline OrderSpline 6 -
+         FFTxGridPts 90 FFTyGridPts 90 FFTzGridPts 90 -
+         VDW VGroup VShift -
+         CutNBondList 13.0 CTofNBond 12.0 CTonNBond 10.0 -
+         INBFreq -1 ImgFreq -1 CutImageList 18.0 WMIN 1.2
+
+
+!-----------------------------------------------------------
+! Now, constrain the bond distance involving H atoms (BONH)
+! during dynamics.
+!-----------------------------------------------------------
+Shake BonH Tolerance 1.0E-7 Parameter Select all end 
+
+!----------------------------------------
+!   U M B R E L L A  S A M P L I N G setup
+!----------------------------------------
+! Define Reaction Coordinate
+define dh23 sele ( segid dhfr .and. resid 23 .and. .not. bakb ) show end
+define dh22 sele ( segid dhfr .and. resid 22 .and. .not. bakb ) show end
+define dh21 sele ( segid dhfr .and. resid 21 .and. .not. bakb ) show end
+define dh20 sele ( segid dhfr .and. resid 20 .and. .not. bakb ) show end
+define dh18 sele ( segid dhfr .and. resid 18 .and. .not. bakb ) show end
+define dh17 sele ( segid dhfr .and. resid 17 .and. .not. bakb ) show end
+define dh13 sele ( segid dhfr .and. resid 13 .and. .not. bakb ) show end
+open write unit 22 form name 3ql3_qqdh_ub.trc
+open write unit 21 form name 3ql3_qqdh_ub.pmf
+open write unit 23 form name 3ql3_qqd1_ub.pmf
+open write unit 24 form name 3ql3_qqd2_ub.pmf
+
+open write unit 32 form name 3ql3_dist_ub.trc
+
+rxncor: define c1 point select ( atom dhfr 45 ca .or. atom dhfr 97 ca .or. -
+                                 atom dhfr 44 ca .or. atom dhfr 98 ca ) show end
+rxncor: define c2 point select ( atom dhfr 30 ca .or. atom dhfr 31 ca .or. -
+                                 atom dhfr 28 ca .or. atom dhfr 29 ca ) show end
+rxncor: define c3 point select ( atom dhfr 18 ca .or. atom dhfr 17 ca ) show end
+rxncor: define c1c3 distance c1 c3
+rxncor: define c2c3 distance c2 c3
+rxncor: define rdis scombi c2c3 1.0 c1c3 -1.0
+
+rxncor: define dum1 point select (atom dum 1 dum )  show end
+rxncor: define dum2 point select (atom dum 2 dum )  show end
+rxncor: define d1d2 distance dum1 dum2
+
+rxncor: define a1 point select atom dhfr 23 CA end
+rxncor: define a2 point select atom dhfr 21 CA end
+rxncor: define a3 point select atom dhfr 18 CA end
+rxncor: define a4 point select atom dhfr 17 CA end
+
+rxncor: define adir direction a3 a2
+rxncor: define a123 plane thro a1 thro a2 thro a3
+rxncor: define a234 plane thro a2 thro a3 thro a4
+rxncor: define adih angle a123 a234 adir
+
+rxncor: define e1 point select atom dhfr 21 CA end
+rxncor: define e2 point select atom dhfr 20 CA end
+rxncor: define e3 point select atom dhfr 18 CA end
+rxncor: define e4 point select atom dhfr 17 CA end
+
+rxncor: define edir direction e3 e2
+rxncor: define e123 plane thro e1 thro e2 thro e3
+rxncor: define e234 plane thro e2 thro e3 thro e4
+rxncor: define edih angle e123 e234 edir
+
+rxncor: define f1 point select dh21 end
+rxncor: define f2 point select dh20 end
+rxncor: define f3 point select dh18 end
+rxncor: define f4 point select dh17 end
+
+rxncor: define fdir direction f3 f2
+rxncor: define f123 plane thro f1 thro f2 thro f3
+rxncor: define f234 plane thro f2 thro f3 thro f4
+rxncor: define fdih angle f123 f234 fdir
+
+rxncor: define g2 point select dh18 end
+rxncor: define g3 point select dh17 end
+
+
+rxncor: define gdir direction g3 g2
+rxncor: define g123 plane thro c1 thro g2 thro g3
+rxncor: define g234 plane thro g2 thro g3 thro c2
+rxncor: define gdih angle g123 g234 gdir
+
+rxncor: define c1f1 distance c1 f1
+rxncor: define c1f2 distance c1 f2
+rxncor: define c1f3 distance c1 f3
+rxncor: define c1f4 distance c1 f4
+rxncor: define qqd1 scombi c1f1 0.2 c1f2 0.2 c1f3 0.2 c1f4 0.2 c1c3 0.2
+rxncor: define c2f1 distance c2 f1
+rxncor: define c2f2 distance c2 f2
+rxncor: define c2f3 distance c2 f3
+rxncor: define c2f4 distance c2 f4
+rxncor: define qqd2 scombi c2f1 0.2 c2f2 0.2 c2f3 0.2 c2f4 0.2 c2c3 0.2
+rxncor: define qqdh scombi qqd2 1.0 qqd1 -1.0
+
+rxncor: set nrxn 1 qqdh
+rxncor: trace qqdh unit 22
+rxncor: trace qqd1 unit 23
+rxncor: trace qqd2 unit 24
+!rxncor: trace rdis unit 32
+
+rxncor: umbrella name qqdh kumb 0.0 form 1 del0 0.0
+!rxncor: umbrella name rdis kumb 10.0 form 1 del0 0.0
+rxncor: statistics name qqdh lowdelta -50.0 hidelta 50.0 deldel 0.01 -
+!                   name rdis lowdelta -4.0 hidelta 15.0 deldel 0.01 -
+                   start 500
+
+cons fix sele segid dum end
+!cons fix sele  bakb end
+!mini sd nstep 200  nprint 500
+!mini abnr nstep 2000  nprint 500
+Open read  form unit 71 name @{restart}
+Open write unfo unit 31 name @{output}.dcd  ! Write VMD trajectory file
+Open write form unit 41 name @{output}.rst  ! Write ReStart file
+
+
+DYNAmics  cpt            Leapfrog       ReStart         nstep @{steps}  time 0.002  -  ! INITIALIZE
+          iPrFreq 250    NPrint 250     iSvFrqRst 100   NSavCrdTrj 1000  NSavV 500   -  ! I/O FREQS
+          iUnRead 71     iunWri 41      iunCrd 31       iunVel -51      kunit -61   -  ! I/O UNITS
+          iNBFreq 25     iMgFreq 25     iEqFrq 50       ntrFreq 500                 -  ! NBOND FREQS
+          iXTfrqUpdateImage 1000        Echeck 2000000.0     iseed 534597 6589867               -  ! CRYSTAL - ENER CHECK
+          iAsor 0        iAsVel 1       iScVel 0        IChecWindow 0               -  ! VELOCITIES
+          FirstTemperature 298.15       FinalTemperature 298.15                     -
+          TstrucStart -999              TWinDHigh 5.    TWinDLow -5.                -  ! TEMPERATURE
+          IHtFreq 1      TemIncement 0.0                                            -  ! HEATING UP
+          Pconstant      PINTernal      Preferencce 1.0 Pgamma 25.      Pmass 500.  -  ! PRESSURE
+          HOOVER         Tmass 1000.0   RefTemp 298.15  Tbath 298.15                   ! HOOVER
+
+Open Write card unit 26 name @{output}.crd
+Write coord card unit 26
+* At window 5.2A
+* Newtonian dynamics for all.
+*
+Close Unit 26
+
+rxncor: write unit 21
+
+STOP
+
